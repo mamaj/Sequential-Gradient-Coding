@@ -22,7 +22,7 @@ class Multiplexed_SGC:
         self.T = W - 2 + B
         
         # state of the master: (worker, minitask, round)
-        self.state = np.full((n, self.minitasks, rounds), -1) 
+        self.state = np.full((n, self.minitasks, rounds), np.nan) 
                 
         # constants
         self.D1_TOKEN = 0
@@ -44,7 +44,7 @@ class Multiplexed_SGC:
         """ This will fill state(:, :, round_)
         """
         
-        round_result = np.full((self.n, self.minitasks), -1) 
+        round_result = np.full((self.n, self.minitasks), np.nan) 
         
         for m in range(self.minitasks):
             job = self._get_job(round_, m)
