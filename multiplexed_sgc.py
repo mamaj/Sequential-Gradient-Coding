@@ -39,8 +39,6 @@ class Multiplexed_SGC:
             if t >= 0 and not self.is_decodable(t):
                 raise RuntimeError(f'round {round_} is not decodable.')
                  
-                
-        
     
     def perform_round(self, round_) -> None:
         """ This will fill state(:, :, round_)
@@ -54,9 +52,11 @@ class Multiplexed_SGC:
         # for next minitasks, if D1 of D1_TOKEN is present on diagonal, put 
         # corresponding D2_TOKEN, otherwise put D1_TOKEN
         for m in range(self.D2):
-            t = round_ -self.D1 - m
-            num_d1 = (self.task_results(t) == self.D1_TOKEN).sum(axis=1)
-            round_result[:, m] = np.where(num_d1 > 1, self.D2_TOKENS[m], self.D1_TOKEN)
+            t = round_ - self.D1 - m
+            if t >= 0:
+                num_d1 = (self.task_results(t) == self.D1_TOKEN).sum(axis=1)
+                round_result[:, m + self.D1] = \
+                    np.where(num_d1 > 1, self.D2_TOKENS[m], self.D1_TOKEN)
         
         # apply stragglers
         delay = self.delays[:, round_]
