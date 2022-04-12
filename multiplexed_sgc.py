@@ -35,8 +35,8 @@ class Multiplexed_SGC:
             self.perform_round(round_)
             
             # decode
-            t = round_ - self.T
-            if t >= 0 and not self.is_decodable(t):
+            job = self._get_job(round_)
+            if job >= 0 and not self.is_decodable(job):
                 raise RuntimeError(f'round {round_} is not decodable.')
                  
     
@@ -46,17 +46,22 @@ class Multiplexed_SGC:
         
         round_result = np.full((self.n, self.minitasks), -1) 
         
-        # fill first D1 minitasks of workers with D1_TOKEN
-        round_result[:, :self.D1] = self.D1_TOKEN
-        
-        # for next minitasks, if D1 of D1_TOKEN is present on diagonal, put 
-        # corresponding D2_TOKEN, otherwise put D1_TOKEN
-        for m in range(self.D2):
-            t = round_ - self.D1 - m
-            if t >= 0:
-                num_d1 = (self.task_results(t) == self.D1_TOKEN).sum(axis=1)
-                round_result[:, m + self.D1] = \
-                    np.where(num_d1 > 1, self.D2_TOKENS[m], self.D1_TOKEN)
+        for m in range(self.minitasks):
+            job = self._get_job(round_, m)
+            if job < 0:
+                break
+            
+            # fill first D1 minitasks of workers with D1_TOKEN
+            if m < self.D1:
+                round_result[:, m] = self.D1_TOKEN
+            
+            # for next minitasks, if D1 of D1_TOKEN is present on diagonal, put 
+            # D2_TOKEN of the group, otherwise put D1_TOKEN
+            else:
+                group = m - self.D1
+                num_d1 = (self.task_results(job) == self.D1_TOKEN).sum(axis=1)
+                round_result[:, m] = \
+                    np.where(num_d1 > 1, self.D2_TOKENS[group], self.D1_TOKEN)
         
         # apply stragglers
         delay = self.delays[:, round_]
@@ -66,9 +71,14 @@ class Multiplexed_SGC:
         
         # set round_result into state
         self.state[:, :, round_] = round_result
-    
 
-    def is_decodable(self, t) -> bool:
+
+    def _get_job(self, round_, minitask=None):
+        minitask = self.minitasks if minitask is None else minitask
+        return round_ - minitask
+        
+
+    def is_decodable(self, job) -> bool:
         """
         To be able to decode:
             1. Each worker should have all of its D1 chunks.
@@ -79,7 +89,7 @@ class Multiplexed_SGC:
             minitasks = W-1 [=D1 slots] + B [=D2 slots]
         """
         
-        task_results = self.task_results(t) # (n, minitasks) 
+        task_results = self.task_results(job) # (n, minitasks) 
         
         # 1. Each worker should have D1 of D1_TOKEN
         num_d1 = (task_results == self.D1_TOKEN).sum(axis=1)
@@ -87,18 +97,18 @@ class Multiplexed_SGC:
             return False
         
         # 2. There should be at least `lambd` of each D2_TONKENS in task_results
-        num_d2 = (task_results.flatten()[:, None] == self.D2_TOKENS).sum(axis=-1)
+        num_d2 = (task_results.flatten()[:, None] == self.D2_TOKENS).sum(axis=0)
         if np.any(num_d2 < self.lambd):
             return False
         
         return True
         
     
-    def task_results(self, t):
-        """ returns the diagonals of every worker for job t.
+    def task_results(self, job):
+        """ returns the diagonals of every worker for job.
                 shape: (n, minitasks) 
                 minitasks = W-1 [=D1 slots] + B [=D2 slots]
         """
         
         # axis1 = minitask ax, axis2 = round ax
-        return self.state.diagonal(axis1=1, axis2=2, offset=t)
+        return self.state.diagonal(axis1=1, axis2=2, offset=job)
