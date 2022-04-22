@@ -82,14 +82,11 @@ class Multiplexed_SGC:
         """
         To be able to decode:
             1. Each worker should have all of its D1 chunks.
-            2. In total, at least `lambda` coded results from each of the
+            2. In total, at least `n - lambda` coded results from each of the
                B groups in D2.
-            
-        task_results: (n, minitasks) the diagonals of every worker: 
-            minitasks = W-1 [=D1 slots] + B [=D2 slots]
         """
         
-        task_results = self.task_results(job) # (n, minitasks) 
+        task_results = self.task_results(job) # (n, minitasks) the diagonals of every worker
         
         # 1. Each worker should have D1 of D1_TOKEN
         num_d1 = (task_results == self.D1_TOKEN).sum(axis=1)
@@ -98,7 +95,7 @@ class Multiplexed_SGC:
         
         # 2. There should be at least `lambd` of each D2_TONKENS in task_results
         num_d2 = (task_results.flatten()[:, None] == self.D2_TOKENS).sum(axis=0)
-        if np.any(num_d2 < self.lambd):
+        if np.any(num_d2 < self.n - self.lambd):
             return False
         
         return True
