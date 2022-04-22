@@ -44,7 +44,7 @@ class Multiplexed_SGC:
     def perform_round(self, round_) -> None:
         """ This will fill state(:, :, round_)
         """
-        
+        print(round_)
         round_result = np.full((self.n, self.minitasks), np.nan)
         
         for m in range(self.minitasks):
@@ -70,10 +70,12 @@ class Multiplexed_SGC:
         is_straggler = delay > wait_time
         
         if self.follows_straggler_model(round_, is_straggler):
+            print('follows')
             # do not wait for all: apply straggler pattern
             round_result[is_straggler, :] = -1
             round_duration = wait_time
         else:
+            print('does not follow')
             # wait for all: do not apply stragglers
             round_duration = delay.max()
             
@@ -83,7 +85,7 @@ class Multiplexed_SGC:
 
 
     def _get_job(self, round_, minitask=None) -> int:
-        minitask = self.minitasks if minitask is None else minitask
+        minitask = self.minitasks-1 if minitask is None else minitask
         return round_ - minitask
         
 
@@ -126,8 +128,8 @@ class Multiplexed_SGC:
             
             1- spatial correlation: within the past W rounds, at most `lambd`
             unique stragglers.
-            2- temporal correlation: if worker i is a straggeler at the current
-            round, it cannot be a straggeler in [-W, -(B-1)] rounds relative to 
+            2- temporal correlation: if worker i is a straggler at the current
+            round, it cannot be a straggler in [-W, -B] rounds relative to 
             the current round.
             
             r (int): current round idx.
@@ -136,7 +138,7 @@ class Multiplexed_SGC:
         
         # 1. spatial cond: at most `lambd` unique stragglers over the 
         # past W rounds.
-        state_window = self.state[:, 0, r + 1 - self.W : r]
+        state_window = self.state[:, 0, np.maximum(0, r+1-self.W) : r]
         been_straggler = (state_window == -1).any(axis=1)
         num_stragglers = (been_straggler | is_straggler).sum()
         
@@ -146,7 +148,7 @@ class Multiplexed_SGC:
         # 2. temporal cond: if worif worker i is a straggeler at the 
         # current round, it cannot be a straggeler in [-W, -B]:
         
-        state_window = self.state[:, 0, r + 1 - self.W : r + 1 - self.B]
+        state_window = self.state[:, 0, np.maximum(0, r+1-self.W) : np.maximum(0, r+1-self.B)]
         been_straggler = (state_window == -1).any(axis=1)
         
         if (been_straggler & is_straggler).any():
