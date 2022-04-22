@@ -12,7 +12,7 @@ class Multiplexed_SGC:
         self.rounds = rounds
         self.mu = mu
         
-        # delat profile
+        # delay profile
         self.delays = delays # (n, rounds)
         
         # parameters
@@ -61,7 +61,7 @@ class Multiplexed_SGC:
                 group = m - self.D1
                 num_d1 = (self.task_results(job) == self.D1_TOKEN).sum(axis=1)
                 round_result[:, m] = \
-                    np.where(num_d1 > 1, self.D2_TOKENS[group], self.D1_TOKEN)
+                    np.where(num_d1 >= self.D1, self.D2_TOKENS[group], self.D1_TOKEN)
         
         # apply stragglers
         delay = self.delays[:, round_]
