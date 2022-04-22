@@ -23,13 +23,14 @@ class Multiplexed_SGC:
         
         # state of the master: (worker, minitask, round)
         self.state = np.full((n, self.minitasks, rounds), np.nan) 
+        self.durations = np.full((rounds, ), -1.)
                 
         # constants
         self.D1_TOKEN = 0
         self.D2_TOKENS = np.arange(B) + 1 # B tokens, one for each D2 group
     
     
-    def run(self):
+    def run(self) -> None:
         for round_ in range(self.rounds):
             # perform round
             self.perform_round(round_)
@@ -44,7 +45,7 @@ class Multiplexed_SGC:
         """ This will fill state(:, :, round_)
         """
         
-        round_result = np.full((self.n, self.minitasks), np.nan) 
+        round_result = np.full((self.n, self.minitasks), np.nan)
         
         for m in range(self.minitasks):
             job = self._get_job(round_, m)
@@ -67,13 +68,21 @@ class Multiplexed_SGC:
         delay = self.delays[:, round_]
         wait_time = delay.min() * (1 + self.mu) 
         is_straggler = delay > wait_time
-        round_result[is_straggler, :] = -1
         
+        if self.follows_straggler_model(round_, is_straggler):
+            # do not wait for all: apply straggler pattern
+            round_result[is_straggler, :] = -1
+            round_duration = wait_time
+        else:
+            # wait for all: do not apply stragglers
+            round_duration = delay.max()
+            
         # set round_result into state
         self.state[:, :, round_] = round_result
+        self.durations[round_] = round_duration
 
 
-    def _get_job(self, round_, minitask=None):
+    def _get_job(self, round_, minitask=None) -> int:
         minitask = self.minitasks if minitask is None else minitask
         return round_ - minitask
         
@@ -101,7 +110,7 @@ class Multiplexed_SGC:
         return True
         
     
-    def task_results(self, job):
+    def task_results(self, job) -> np.ndarray:
         """ returns the diagonals of every worker for job.
                 shape: (n, minitasks) 
                 minitasks = W-1 [=D1 slots] + B [=D2 slots]
@@ -109,3 +118,38 @@ class Multiplexed_SGC:
         
         # axis1 = minitask ax, axis2 = round ax
         return self.state.diagonal(axis1=1, axis2=2, offset=job)
+    
+    
+    def follows_straggler_model(self, r, is_straggler) -> bool:
+        """ Checks if at any given round, the spatial and temporal conditions 
+            of (B, W, lambd)-bursty straggler model are met.
+            
+            1- spatial correlation: within the past W rounds, at most `lambd`
+            unique stragglers.
+            2- temporal correlation: if worker i is a straggeler at the current
+            round, it cannot be a straggeler in [-W, -(B-1)] rounds relative to 
+            the current round.
+            
+            r (int): current round idx.
+            is_straggler (ndarray): boolean array of length n.
+        """
+        
+        # 1. spatial cond: at most `lambd` unique stragglers over the 
+        # past W rounds.
+        state_window = self.state[:, 0, r + 1 - self.W : r]
+        been_straggler = (state_window == -1).any(axis=1)
+        num_stragglers = (been_straggler | is_straggler).sum()
+        
+        if num_stragglers > self.lambd:
+            return False
+        
+        # 2. temporal cond: if worif worker i is a straggeler at the 
+        # current round, it cannot be a straggeler in [-W, -B]:
+        
+        state_window = self.state[:, 0, r + 1 - self.W : r + 1 - self.B]
+        been_straggler = (state_window == -1).any(axis=1)
+        
+        if (been_straggler & is_straggler).any():
+            return False
+        
+        return True
