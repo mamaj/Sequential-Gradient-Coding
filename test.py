@@ -1,5 +1,15 @@
 import numpy as np
 from multiplexed_sgc import Multiplexed_SGC
+from utils import load_windows_exp, get_durations
+
+
+load_windows_exp(
+    nworkers=100,
+    ninvokes=100,
+    size=1000,
+    region='Tokyo',
+    folder='../aws-lambda/exp_long_3',
+)
 
 delays = np.random.normal(size=(4, 6))
 delays += 10
@@ -11,9 +21,10 @@ model = Multiplexed_SGC(n=4,
                 W=3, 
                 lambd=2,
                 rounds=6, 
-                mu=.2,
+                mu=.1,
                 delays=delays)
 
 
 model.run()
+print(model.durations)
 model.state
