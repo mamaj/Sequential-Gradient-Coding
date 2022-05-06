@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class Multiplexed_SGC:
+class MultiplexedSGC:
     
     def __init__(self, n, B, W, lambd, rounds, mu, delays) -> None:
         # design parameters
@@ -44,7 +44,6 @@ class Multiplexed_SGC:
     def perform_round(self, round_) -> None:
         """ This will fill state(:, :, round_)
         """
-        print(round_)
         round_result = np.full((self.n, self.minitasks), np.nan)
         
         for m in range(self.minitasks):
@@ -70,12 +69,10 @@ class Multiplexed_SGC:
         is_straggler = delay > wait_time
         
         if self.follows_straggler_model(round_, is_straggler):
-            print('follows')
             # do not wait for all: apply straggler pattern
             round_result[is_straggler, :] = -1
             round_duration = wait_time
         else:
-            print('does not follow')
             # wait for all: do not apply stragglers
             round_duration = delay.max()
             
@@ -85,6 +82,13 @@ class Multiplexed_SGC:
 
 
     def _get_job(self, round_, minitask=None) -> int:
+        """ returns the job corresponding to a minitask in a round. 
+        if minitas is None: 
+            returns the job index that is decodable in round round_
+        else:
+            returns the job that the minitask belongs to
+        """
+        
         minitask = self.minitasks-1 if minitask is None else minitask
         return round_ - minitask
         
