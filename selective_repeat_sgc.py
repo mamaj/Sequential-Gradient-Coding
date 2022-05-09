@@ -43,7 +43,7 @@ class SelectiveRepeatSGC:
             # decode
             job = self.get_decodable_job(round_)
             if job >= 0 and not self.is_decodable(job):
-                raise RuntimeError(f'round {round_} is not decodable.')
+                raise RuntimeError(f'Job {job} in round {round_} is not decodable.')
                  
     
     def perform_round(self, round_) -> None:
@@ -57,9 +57,9 @@ class SelectiveRepeatSGC:
         # current task
         decode_job = self.get_decodable_job(round_)
         if decode_job >= 0:
-            prev_stragglers = np.flatnonzero(self.state[:, decode_job] == -1)
-            if (v := prev_stragglers.size) > self.s:
-                repeat_workers = prev_stragglers[0 : v - self.s]
+            no_contrib_workers = np.flatnonzero(self.state[:, decode_job] != decode_job)
+            if (v := no_contrib_workers.size) > self.s:
+                repeat_workers = no_contrib_workers[0 : v - self.s]
                 round_result[repeat_workers] = decode_job
             
         # apply stragglers
@@ -138,3 +138,5 @@ class SelectiveRepeatSGC:
             return False
         
         return True
+    
+    
