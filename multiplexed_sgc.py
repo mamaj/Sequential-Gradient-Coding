@@ -12,26 +12,40 @@ class MultiplexedSGC:
         self.rounds = rounds
         self.mu = mu
         
-        # delay profile
-        self.delays = delays # (n, rounds)
-        
         # parameters
         self.D1 = (W - 1)
         self.D2 = B
         self.minitasks = W - 1 + B
         self.T = W - 2 + B
+        self.load = self.normalized_load(n, B, W, lambd)
+        self.total_rounds = rounds + self.T
+        
+        # delay profile
+        assert delays.shape[1] >= self.total_rounds, \
+            'delays.shape[1] should have at least `rounds + W-2+B` elements.' 
+        assert delays.shape[0] >= n, \
+            'delays.shape[0] should have at least `n` elements'
+        self.delays = delays[:n, :self.total_rounds] # (n, rounds)
         
         # state of the master: (worker, minitask, round)
-        self.state = np.full((n, self.minitasks, rounds), np.nan) 
-        self.durations = np.full((rounds, ), -1.)
+        self.state = np.full((n, self.minitasks, self.total_rounds), np.nan) 
+        self.durations = np.full((self.total_rounds, ), -1.)
                 
         # constants
         self.D1_TOKEN = 0
         self.D2_TOKENS = np.arange(B) + 1 # B tokens, one for each D2 group
     
     
+    @classmethod
+    def normalized_load(cls, n, B, W, lambd):
+        if lambd == n:
+            return (W-1+B) / (n * (W-1))
+        else:
+            return ((lambd+1) * (W-1+B)) / (n * (B + (W-1) * (lambd+1)))
+        
+    
     def run(self) -> None:
-        for round_ in range(self.rounds):
+        for round_ in range(self.total_rounds):
             # perform round
             self.perform_round(round_)
             

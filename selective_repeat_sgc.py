@@ -11,22 +11,32 @@ class SelectiveRepeatSGC:
         self.lambd = lambd
         self.rounds = rounds
         self.mu = mu
-        
         assert (W-1) % B == 0, 'B should devide W-1.'
         
         # parameters
         self.s = math.ceil((B * lambd) / (W - 1 + B))
+        self.load = self.normalized_load(n, self.s)
+        self.total_rounds = rounds + B
         
         # delay profile
-        self.delays = delays # (workers, rounds)
+        assert delays.shape[1] >= self.total_rounds,\
+            'delays.shape[1] should have at least `rounds + B` elements.'
+        assert delays.shape[0] >= n, \
+            'delays.shape[0] should have at least `n` elements'
+        self.delays = delays[:n, :rounds + B] # (workers, rounds + T=B)
         
         # state of the master: (workers, round)
-        self.state = np.full((n , rounds), np.nan) 
-        self.durations = np.full((rounds, ), -1.)
-                
+        self.state = np.full((n , self.total_rounds), np.nan) 
+        self.durations = np.full((self.total_rounds, ), -1.)
+    
+    
+    @classmethod
+    def normalized_load(cls, n, s):
+        return (s + 1) / n
+    
     
     def run(self) -> None:
-        for round_ in range(self.rounds):
+        for round_ in range(self.total_rounds):
             # perform round
             self.perform_round(round_)
             
@@ -89,11 +99,11 @@ class SelectiveRepeatSGC:
         """ returns the recieved tasks from workers in rounds job and job+B.
                 shape: (2*n,) 
         """
-        if job + self.B >= self.rounds:
-            return self.state[:, job]
-        else:
-            return np.concatenate((self.state[:, job],
-                                   self.state[:, job+self.B]))
+
+        if job > self.rounds:
+            raise ValueError('job > rounds')
+        return np.concatenate((self.state[:, job],
+                               self.state[:, job+self.B]))
     
     
     def follows_straggler_model(self, r, is_straggler) -> bool:
@@ -121,7 +131,6 @@ class SelectiveRepeatSGC:
         
         # 2. temporal cond: if worif worker i is a straggeler at the 
         # current round, it cannot be a straggeler in [-W, -B]:
-        
         state_window = self.state[:, np.maximum(0, r+1-self.W) : np.maximum(0, r+1-self.B)]
         been_straggler = (state_window == -1).any(axis=1)
         

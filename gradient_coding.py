@@ -10,16 +10,28 @@ class GradientCoding:
         self.rounds = rounds
         self.mu = mu
         
+        # parameters
+        self.load = self.normalized_load(n, s)
+        self.total_rounds = rounds
+        
         # delay profile
-        self.delays = delays # (n, rounds)
+        assert delays.shape[1] >= rounds, \
+            'delays should have at least `rounds` elements.' 
+        assert delays.shape[0] >= n, \
+            'delays.shape[0] should have at least `n` elements'
+        self.delays = delays[:n, :self.total_rounds] # (n, rounds)
         
         # state of the master: (worker, minitask, round)
-        self.state = np.full((n, rounds), np.nan) 
-        self.durations = np.full((rounds, ), -1.)
-                
+        self.state = np.full((n, self.total_rounds), np.nan) 
+        self.durations = np.full((self.total_rounds, ), -1.)
+    
+    
+    @classmethod
+    def normalized_load(cls, n, s):
+        return (s + 1) / n
     
     def run(self) -> None:
-        for round_ in range(self.rounds):
+        for round_ in range(self.total_rounds):
             # perform round
             self.perform_round(round_)
             
