@@ -52,7 +52,7 @@ class MultiplexedSGC:
             # decode
             job = self._get_job(round_)
             if job >= 0 and not self.is_decodable(job):
-                raise RuntimeError(f'round {round_} is not decodable.')
+                raise RuntimeError(f'Job {job} in round {round_} is not decodable.')
                  
     
     def perform_round(self, round_) -> None:
