@@ -43,9 +43,9 @@ def find_durations(n, s, rounds, mu, folder):
         run_results = load_windows_exp(
             nworkers=20,
             ninvokes=200,
-            size=1000,
+            size=500,
             batch=s,
-            region='Canada',
+            region='London',
             folder=folder,
         )
         delays = get_durations(run_results).T # (workers, rounds)
@@ -84,21 +84,21 @@ def find_durations(n, s, rounds, mu, folder):
 def main():
     # params
     n = 20
-    rounds = 100
+    rounds = 150
     mu = 0.1
-    folder = '../aws-lambda/batch_numpy'
+    folder = '../aws-lambda/batch_numpy4'
     
     # find best parameter combination for each choice of s
     with ProcessPoolExecutor() as executor:
         futures = [
             executor.submit(find_durations, n, s, rounds, mu, folder)
-            for s in range(1, n)
+            for s in range(1, 7)
             ]
         
     durations = [f.result() for f in futures]
     
     # save results
-    file_path = folder.split('/')[-1] + '.pkl'
+    file_path = f'{folder.split("/")[-1]}_London.pkl'
     with open(file_path, 'wb') as f:
         pickle.dump(durations, f)
 
