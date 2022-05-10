@@ -13,11 +13,11 @@ def parse_log_duration(log):
     return float(duration)
 
 
-def load_windows_exp(nworkers, ninvokes, size, region,
-                     folder='exp_window', complete_response=False):
+def load_windows_exp(nworkers, ninvokes, size, batch, region,
+                     folder, complete_response=False):
     
     exp_folder = Path(folder)
-    fname = f"w{nworkers}-n{ninvokes}-s{size}-{region}"
+    fname = f"w{nworkers}-n{ninvokes}-s{size}-b{batch}-{region}"
     fpath = (exp_folder / fname).with_suffix('.pkl')
 
 
