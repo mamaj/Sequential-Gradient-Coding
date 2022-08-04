@@ -43,6 +43,15 @@ class MultiplexedSGC:
         else:
             return ((lambd+1) * (W-1+B)) / (n * (B + (W-1) * (lambd+1)))
         
+
+    @classmethod
+    def param_combinations(cls, n, rounds, max_delay):
+        for lambd in range(1, n+1):
+            for W in range(2, rounds):
+                for B in range(1, W):
+                    if max_delay >= W - 1 + B:
+                        yield B, W, lambd
+
     
     def run(self) -> None:
         for round_ in range(self.total_rounds):

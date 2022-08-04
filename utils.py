@@ -18,6 +18,8 @@ def load_windows_exp(nworkers, ninvokes, size, batch, region,
     
     exp_folder = Path(folder)
     fname = f"w{nworkers}-n{ninvokes}-s{size}-b{batch}-{region}"
+    if batch is None:
+        fname = f"w{nworkers}-n{ninvokes}-s{size}-{region}"
     fpath = (exp_folder / fname).with_suffix('.pkl')
 
 

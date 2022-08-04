@@ -34,6 +34,15 @@ class SelectiveRepeatSGC:
     def normalized_load(cls, n, s):
         return (s + 1) / n
     
+
+    @classmethod
+    def param_combinations(cls, n, rounds, max_delay):
+        for lambd in range(1, n+1):
+            for B in range(1, max_delay+1):
+                for W in range(B+1, rounds, B):  # W = x * B + 1
+                    yield B, W, lambd
+
+    
     
     def run(self) -> None:
         for round_ in range(self.total_rounds):

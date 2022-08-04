@@ -34,7 +34,8 @@ rounds = load_windows_exp(
     ninvokes=100,
     size=1000,
     region='Tokyo',
-    folder='../aws-lambda/exp_long_3',
+    batch=None,
+    folder='../aws-lambda/exps/exp_long_3',
 )
 delays = get_durations(rounds)
 delays = delays.T # (workers, rounds)

@@ -30,6 +30,14 @@ class GradientCoding:
     def normalized_load(cls, n, s):
         return (s + 1) / n
     
+    
+    @classmethod
+    def param_combinations(cls, n, rounds=None, buffer_rounds=None):
+        for s in range(1, n+1):
+            yield (s, )
+
+    
+    
     def run(self) -> None:
         for round_ in range(self.total_rounds):
             # perform round
