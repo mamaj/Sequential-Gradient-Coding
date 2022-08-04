@@ -3,10 +3,12 @@ from functools import cache
 import pickle
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
+from multiprocessing import cpu_count
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm, trange
+from tqdm.contrib.concurrent import F
 import matplotlib.pyplot as plt
 
 from gradient_coding import GradientCoding
@@ -30,17 +32,19 @@ max_delay = ninvokes - rounds  # total number of rounds profiled - number of job
 mu = 0.2
 
 base_comp_time = 1. #TODO how to find this?
+# runtime = model.durations.sum() + (model.total_rounds * (model.load) * 0.) 
 
 
 
 # parameter combinations:
-gc_params = list(GradientCoding.param_combinations(workers))
-srsgc_params = list(SelectiveRepeatSGC.param_combinations(workers, rounds, max_delay))
-msgc_params = list(MultiplexedSGC.param_combinations(workers, rounds, max_delay))
+# gc_params = list(GradientCoding.param_combinations(workers))
+# srsgc_params = list(SelectiveRepeatSGC.param_combinations(workers, rounds, max_delay))
+# msgc_params = list(MultiplexedSGC.param_combinations(workers, rounds, max_delay))
 
-print(f'GC: {len(gc_params)}')
-print(f'SR-SGC:  {len(srsgc_params)}')
-print(f'M-SGC:  {len(msgc_params)}')
+# print(f'GC: {len(gc_params)}')
+# print(f'SR-SGC:  {len(srsgc_params)}')
+# print(f'M-SGC:  {len(msgc_params)}')
+
 
 
 # load delay profile
@@ -58,7 +62,14 @@ base_delays = get_durations(run_results).T # (workers, rounds)
 
 
 # find runtimes
-model_name = 'GC'
+
+def find_runtimes(params):
+    model = Model(workers, *params, rounds, mu, base_delays)
+    model.run()
+    return {params: model.durations.sum()}
+
+
+model_name = 'SRSGC'
 
 models = {
     'GC': GradientCoding,
@@ -67,34 +78,27 @@ models = {
 }
 
 Model = models[model_name]
-
-runtimes = {'model name': model_name, 'duration': []}
-
 params_combinations = list(Model.param_combinations(workers, rounds, max_delay))
 
-for params in tqdm(params_combinations):
+
+if __name__ == '__main__':
+        
+    # with ProcessPoolExecutor() as executor:
+    #     futures = [
+    #         executor.submit(find_runtimes, params)
+    #         for params in tqdm(params_combinations)
+    #         ]
+    #     durations = [f.result() for f in tqdm(futures)]
     
-    # delays = base_delays + (s+1) * 0.
-    delays = base_delays
+    durations = process_map(find_runtimes, params_combinations,
+                            chunksize=len(params_combinations)//cpu_count())
     
-    model = Model(workers, *params, rounds, mu, delays)
-    model.run()
-    runtime = model.durations.sum() + (model.total_rounds * (model.load) * 0.) # TODO: what to put instead of 1.
-    runtimes['duration'].append({
-        params: runtime
-    })
+    print('done.')
+    
+    runtimes = {'model name': model_name, 'durations': durations}
 
-
-def find_runtimes(params):
-    model = Model(workers, *params, rounds, mu, delays)
-    model.run()
-    return model.durations.sum()
-
-
-with ProcessPoolExecutor() as executor:
-    futures = [
-        executor.submit(find_runtimes, params)
-        for params in tqdm(params_combinations)
-        ]
-    durations = [f.result() for f in futures]
+    # save results
+    file_path = f'{folder.split("/")[-1]}_{region_name}_mu0-2_{model_name}.pkl'
+    with open(file_path, 'wb') as f:
+        pickle.dump(runtimes, f)
 
